@@ -68,3 +68,7 @@ fix-imports:
 	${call colored,fixing imports...}
 	./scripts/fix-imports-order.sh
 
+## Installs tools from vendor.
+install-vendored-tools:
+	./scripts/install/vendored-tools.sh
+.PHONY: install-vendored-tools
