@@ -6,8 +6,6 @@ import (
 )
 
 const (
-	width               = 25
-	height              = 25
 	SleepIteration      = 100
 	ClearScreenSequence = "\033c\x0c"
 	//	MoveCursorAndClearScreenSequence move cursor and clear screen in linux terminal.
@@ -42,36 +40,43 @@ const (
 	Reset       = "\033[0m"
 )
 
+type Universe [][]bool
+
 // World represents our Universe, which will contain a two-dimensional field of cells.
 // With a boolean type, each cell will be either alive (true) or dead (false).
-type World [][]bool
-
-//type World struct {
-//	w  Universe
-//	width  int
-//	height int
-//}
+type World struct {
+	universe Universe
+	width    int
+	height   int
+}
 
 // MakeWorld creates new Universe with row height 'height' and column 'width' per row.
 // Function returns empty world.
-func MakeWorld() World {
-	w := make(World, height)
-	for i := range w {
-		w[i] = make([]bool, width)
+func MakeWorld(width, height int) (*World, error) {
+	if width <= 0 && height <= 0 {
+		return nil, ErrNotValidWidthAndHeight
 	}
-	return w
+	if width <= 0 {
+		return nil, ErrWidthNotValid
+	}
+	if height <= 0 {
+		return nil, ErrHeightNotValid
+	}
+
+	u := make(Universe, height)
+	for i := range u {
+		u[i] = make([]bool, width)
+	}
+	return &World{
+		universe: u,
+		width:    width,
+		height:   height,
+	}, nil
 }
 
-//func NewWorld(width, height int) *World {
-//	return &World{
-//		cells:  make([]Cell, width*height),
-//		width:  width,
-//		height: height,
-//	}
-//}
-
+// Display prints to screen
 func (w World) Display() {
-	for _, row := range w {
+	for _, row := range w.universe {
 		for _, cell := range row {
 			switch {
 			case cell:
@@ -85,8 +90,8 @@ func (w World) Display() {
 }
 
 // Seed randomly places approximately 25% of alive cells with value 'true'.
-func (w World) Seed() {
-	for _, row := range w {
+func (w *World) Seed() {
+	for _, row := range w.universe {
 		for i := range row {
 			if rand.Intn(4) == 1 {
 				row[i] = true
@@ -97,15 +102,16 @@ func (w World) Seed() {
 
 // Alive determines whether a cell is alive or dead. Method just looks at the cage in the World slice.
 // If the boolean value is true, then the cell is alive.
-func (w World) Alive(x, y int) bool {
-	y = (height + y) % height
-	x = (width + x) % width
-	return w[y][x]
+// If the coordinates are outside the universe, we return to the beginning.
+func (w *World) Alive(x, y int) bool {
+	y = (w.height + y) % w.height
+	x = (w.width + x) % w.width
+	return w.universe[y][x]
 }
 
-// Neighbors a method, which count the live neighbors of the specified cell, from 0 to 8.
+// Neighbors a method, which count alive neighbors for the specified cell, from 0 to 8.
 // Instead of accessing the universe data directly, use the Alive method to make the universe return to the beginning.
-func (w World) Neighbors(x, y int) int {
+func (w *World) Neighbors(x, y int) int {
 	var neighbors int
 
 	for i := y - 1; i <= y+1; i++ {
@@ -128,7 +134,7 @@ func (w World) Neighbors(x, y int) int {
 //		2. Any live cell with two or three live neighbors lives on to the next generation.
 //		3. Any live cell with more than three live neighbors dies, as if by overcrowding.
 //		4. Any dead cell with exactly three live neighbors becomes a live cell, as if by reproduction. +
-func (w World) NextState(neighbours int, alive bool) bool {
+func (w *World) NextState(neighbours int, alive bool) bool {
 	if neighbours < 4 && neighbours > 1 && alive {
 		return true
 	} else if neighbours == 3 && !alive {
@@ -141,10 +147,10 @@ func (w World) NextState(neighbours int, alive bool) bool {
 // Step updates the state of the next world (b) from current world (a).
 // To complete the simulation, you need to go through every cell in the World and determine what the Next state
 // should be.
-func Step(a, b World) {
-	for i := 0; i < height; i++ {
-		for j := 0; j < width; j++ {
-			b[i][j] = a.NextState(a.Neighbors(j, i), a.Alive(j, i))
+func Step(a, b *World) {
+	for i := 0; i < a.height; i++ {
+		for j := 0; j < a.width; j++ {
+			b.universe[i][j] = a.NextState(a.Neighbors(j, i), a.Alive(j, i))
 		}
 	}
 }
